@@ -10,6 +10,8 @@ import matplotlib.pyplot as plt
 import math
 import json
 import struct
+import scipy.optimize as scop
+import copy
 
 
 class spectr():
@@ -260,77 +262,118 @@ class spectr():
                 if sum(ca[i-di:i+di]>ca[i])==0:
                     self.peaks=np.append(self.peaks,i)
         self.history.append(['fond peaks: '+str(self.peaks)])
+        return self.peaks
 
-
+# mnk
+        
+    def split(self,base,brd=None,tp=0):
+        """
+        Function for split spetrum for sum of spectrums from base 
+        base - tuple of spectrums
+        brd - tuple with boards like (left_board, right_board) in channal 
+        tp = 0 - normal least-squares methods without same boundes 
+        tp = 1 - non-negative least squares solver
+        https://docs.scipy.org/doc/scipy/reference/optimize.html
+        """
+        bsd=np.zeros((len(base[0].sp),len(base)))
+        for i,sp in enumerate(base):
+            bsd[:,i]=sp.sp
+        y=self.sp
+        if brd!=None:
+            bsd=bsd[brd[0]:brd[1],:]
+            y=y[brd[0]:brd[1]]
+        if tp == 0:
+            return np.linalg.lstsq(bsd, y)[0]
+        elif tp == 1:
+            return scop.nnls(bsd,y)[0]
+        
+            
+            
 # math for spectr
          
     def __mul__(self, k):
         """
         multiplication spectr by number k
         """
-        self.sp=self.sp*k
-        return self
+        sp=copy.copy(self)
+        if type(k) in[float, int]:
+            sp.sp=sp.sp*k
+        return sp
     
     def __rmul__(self, k):
         """
         multiplication spectr by number k
         """
-        self.sp=self.sp*k
-        return self
-
+        sp=copy.copy(self)
+        if type(k) in[float, int]:
+            sp.sp=sp.sp*k
+        return sp
     
     def __truediv__(self, k,time=None):
         """
         division spectr by number k
         """
-        self.sp=self.sp/k
-        return self
+        sp=copy.copy(self)
+        if (type(k) in[float, int])and(k!=0):
+            sp.sp=sp.sp/k
+        return sp
+        
     
     def __radd__(self, k):
         """
         sum spectr by number k
         """
+        sp=copy.copy(self)
         if type(k) in[float, int]:
-            self.sp=self.sp+k
+            sp.sp=sp.sp+k
         elif (str(type(k)) == "<class 'SPINLib.spectr'>"):
-            if len(self.sp)==len(k.sp):
-                self.sp=self.sp+k.sp
-            
-        return self
-    
+            if len(sp.sp)>=len(k.sp):
+                sp.sp = sp.sp[0:len(k.sp)]+k.sp
+            else:
+                sp.sp = sp.sp[0:len(k.sp)]+k.sp[0:len(sp.sp)]
+        return sp
+       
     def __add__(self, k):
         """
         sum spectr by number k
         """
+        sp=copy.copy(self)
         if type(k) in[float, int]:
-            self.sp=self.sp+k
+            sp.sp=sp.sp+k
         elif (str(type(k)) == "<class 'SPINLib.spectr'>"):
-            if len(self.sp)==len(k.sp):
-                self.sp=self.sp+k.sp
-        return self
+            if len(sp.sp)>=len(k.sp):
+                sp.sp = sp.sp[0:len(k.sp)]+k.sp
+            else:
+                sp.sp = sp.sp[0:len(k.sp)]+k.sp[0:len(sp.sp)]
+        return sp
     
     def __rsub__(self, k):
         """
         sum spectr by number k
         """
+        sp=copy.copy(self)
         if type(k) in[float, int]:
-            self.sp=self.sp-k
+            sp.sp=sp.sp-k
         elif (str(type(k)) == "<class 'SPINLib.spectr'>"):
-            if len(self.sp)==len(k.sp):
-                self.sp=self.sp-k.sp
-            
-        return self
+            if len(sp.sp)>=len(k.sp):
+                sp.sp = sp.sp[0:len(k.sp)]-k.sp
+            else:
+                sp.sp = sp.sp[0:len(k.sp)]-k.sp[0:len(sp.sp)]
+        return sp
     
     def __sub__(self, k):
         """
         sum spectr by number k
         """
+        sp=copy.copy(self)
         if type(k) in[float, int]:
-            self.sp=self.sp-k
+            sp.sp=sp.sp-k
         elif (str(type(k)) == "<class 'SPINLib.spectr'>"):
-            if len(self.sp)==len(k.sp):
-                self.sp=self.sp-k.sp
-        return self
+            if len(sp.sp)>=len(k.sp):
+                sp.sp = sp.sp[0:len(k.sp)]-k.sp
+            else:
+                sp.sp = sp.sp[0:len(k.sp)]-k.sp[0:len(sp.sp)]
+        return sp
     
     
     
