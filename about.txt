@@ -1,0 +1,86 @@
+    sp_type=['na','GINR','GIRZ','GINR+RZ','N','GIER']
+__init__(self):
+# инициализирет спектр
+        self.name=''
+        self.type=self.sp_type[0]
+        self.a=0
+        self.b=0
+        self.a_srd = 0
+        self.b_srd = 0
+        self.c_srd = 0
+        self.N=0
+        self.time = 0
+        self.history=[]
+        self.E=np.zeros(self.N,dtype=float)
+        self.sp=np.zeros(self.N,dtype=float)
+        self.peaks=np.array([])
+        pass
+    
+def set_E(self): 
+""" формирует массив энергий E=i*a+b """
+def open_spe(self, name):
+""" читает спектр в формате SPE """
+def open_cmp(self,name):
+        """ читает спектр в формате CMP """
+def plot_sp(self):
+""" строит спектр"""
+def ShiftComp(self, comp, shift):
+""" Функция деформирует спектр spe 
+    comp - коэффициент сжатия растяжения 
+    shift - сдвиг в каналах
+    j=i*comp + shift
+"""
+def spread(self,a=None,b=None,c=None):
+""" Функция Spreading размазывает спектр 
+    sigma = a*i^2+b*i+c
+"""
+def save_spe(self, name=''):
+""" сохранение спектра в ормате SPE
+    name - имя спектра
+"""
+def save_json(self, name=''):
+""" сохраняет спектр в формате JSON """
+def open_json(self,name):
+""" читает спектр в формате JSON """
+def find_peaks(self,a=None,b=None,c=None):
+"""
+   Function for search pikin spectrum by wavevlet 
+   A package for gamma-ray spectrum analysis and routine neutron activation analysis
+   M E MEDHAT, A ABDEL-HAFIEZ, Z AWAAD and M A ALI
+"""
+def split(self,base,brd=None,tp=0):
+"""
+   Function for split spetrum for sum of spectrums from base 
+   base - tuple of spectrums
+   brd - tuple with boards like (left_board, right_board) in channal 
+   tp = 0 - normal least-squares methods without same boundes 
+   tp = 1 - non-negative least squares solver
+   https://docs.scipy.org/doc/scipy/reference/optimize.html
+"""
+def __mul__(self, k):
+"""
+multiplication spectr by number k
+def __rmul__(self, k):
+"""
+multiplication spectr by number k
+"""
+def __truediv__(self, k,time=None):
+"""
+    division spectr by number k
+"""
+def __radd__(self, k):
+"""
+    sum spectr by number k
+"""
+def __add__(self, k):
+"""
+    sum spectr by number k
+"""
+def __rsub__(self, k):
+"""
+    sum spectr by number k
+"""
+def __sub__(self, k):
+"""
+    sum spectr by number k
+"""
