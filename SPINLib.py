@@ -25,6 +25,9 @@ class spectr():
         self.a_srd = 0 # a param of speading sigma = a*i^2+b*i+c
         self.b_srd = 0 # b param of speading sigma = a*i^2+b*i+c
         self.c_srd = 0 # c param of speading sigma = a*i^2+b*i+c
+        self.A1 = 0 # A1 nonlinear param
+        self.A2 = 0 # A2 nonlinear param
+        self.A3 = 0 # A3 nonlinear param
         self.N=N # count of chenals
         self.time = 0
         self.history=['Create spectr by _init_']
