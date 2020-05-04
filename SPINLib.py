@@ -15,22 +15,23 @@ import copy
 
 
 class spectr():
-    sp_type=['na','GINR','GIRZ','GINR+RZ','N','GIER']
-    def __init__(self):
+    sp_type={'na':0,'GINR':1,'GIRZ':2,'GINR+RZ':3,'N':4,'GIER':5}
+    def __init__(self, N=0):
 # инициализирет спектр
-        self.name=''
-        self.type=self.sp_type[0]
-        self.a=0
-        self.b=0
-        self.a_srd = 0
-        self.b_srd = 0
-        self.c_srd = 0
-        self.N=0
+        self.name='' # name of spectrum
+        self.type=self.sp_type['na'] # type of spectrum
+        self.a=0 # a-param of energy E=i*a+b
+        self.b=0 # a-param of energy E=i*a+b
+        self.a_srd = 0 # a param of speading sigma = a*i^2+b*i+c
+        self.b_srd = 0 # b param of speading sigma = a*i^2+b*i+c
+        self.c_srd = 0 # c param of speading sigma = a*i^2+b*i+c
+        self.N=N # count of chenals
         self.time = 0
-        self.history=[]
+        self.history=['Create spectr by _init_']
         self.E=np.zeros(self.N,dtype=float)
         self.sp=np.zeros(self.N,dtype=float)
-        self.peaks=np.array([])
+        self.ipeaks=np.array([])
+        self.wpeaks=np.array([])
         pass
     
     def set_E(self): 
@@ -49,6 +50,8 @@ class spectr():
         self.sp=np.array(df[4:])
         self.history.append(['Open sp from '+name])
         self.set_E()
+        self.N=len(self.sp)
+        self.history.append(['Open sp from '+name])
         f.close
     
     def open_cmp(self,name):
@@ -119,11 +122,67 @@ class spectr():
         
         self.history.append(['Open sp from '+name])
         self.set_E()
+        self.N=len(self.sp)
+        
     
-    def plot_sp(self):
-        """ строит спектр"""
-        print(self.b)
-        plt.plot(self.E,self.sp)
+    def plot_sp_line(self):
+        """ строит спектр in line"""
+        fig = plt.figure()
+        ax1 = fig.add_axes((0.1,0.3,0.8,0.6)) # create an Axes with some room below
+
+        X = range(self.N)
+        Y = self.sp
+
+        ax1.plot(X,Y)
+        ax1.set_xlabel('Chanal')
+#        ax1.set_xlim(0,self.N)
+        # create second Axes. Note the 0.0 height
+        ax2 = fig.add_axes((0.1,0.1,0.8,0.0))
+        ax2.yaxis.set_visible(False) # hide the yaxis
+
+ #       new_tick_locations = self.E
+    
+#        def tick_function(X):
+#            V = 1/(1+X)
+#            return ["%.3f" % z for z in V]
+
+#        ax2.set_xticks(new_tick_locations)
+ #       ax2.set_xticklabels(tick_function(new_tick_locations))
+        ax2.plot(self.E,Y)
+        ax2.set_xlabel('Energy, KeV')
+     #   ax2.set_xlim(min(self.E),max(self.E))
+        
+        plt.show()
+        
+    def plot_sp_lg(self):
+        """ строит спектр in log"""
+        fig = plt.figure()
+        ax1 = fig.add_axes((0.1,0.3,0.8,0.6)) # create an Axes with some room below
+
+        X = range(self.N)
+        Y = self.sp
+
+        ax1.semilogy(range(self.N),self.sp,label=self.name)
+        ax1.set_xlabel('Chanal')
+#        ax1.set_xlim(0,self.N)
+        # create second Axes. Note the 0.0 height
+        ax2 = fig.add_axes((0.1,0.1,0.8,0.0))
+        ax2.yaxis.set_visible(False) # hide the yaxis
+
+ #       new_tick_locations = self.E
+    
+#        def tick_function(X):
+#            V = 1/(1+X)
+#            return ["%.3f" % z for z in V]
+
+#        ax2.set_xticks(new_tick_locations)
+ #       ax2.set_xticklabels(tick_function(new_tick_locations))
+        ax2.plot(self.E,Y)
+        ax2.set_xlabel('Energy, KeV')
+     #   ax2.set_xlim(min(self.E),max(self.E))
+        
+        plt.show()
+                
     
     def ShiftComp(self, comp, shift):
         """ Функция деформирует спектр spe 
@@ -184,6 +243,7 @@ class spectr():
                     sp_srd[i]=self.sp[i]
                     break
         self.history.append(['Spread a='+str(a)+' b='+str(b)+' c='+str(c)])
+        self.sp=sp_srd
         return sp_srd
     
     def save_spe(self, name=''):
@@ -193,7 +253,7 @@ class spectr():
         if (name == ''):
             name = self.name + '.spe'
         f = open(name,'w')
-        f.write(self.type+'\n')
+        f.write(str(self.type)+'\n')
         f.write(str(self.a)+'\n')
         f.write(str(self.b)+'\n')
         f.write(str(self.time)+'\n')
@@ -224,11 +284,13 @@ class spectr():
             if key=='E':
                 self.E=np.array(self.E,dtype=float)
             
-    def find_peaks(self,a=None,b=None,c=None):
+    def find_peaks(self,th=0.1,a=None,b=None,c=None):
         """
         Function for search pikin spectrum by wavevlet 
         A package for gamma-ray spectrum analysis and routine neutron activation analysis
         M E MEDHAT, A ABDEL-HAFIEZ, Z AWAAD and M A ALI
+        th- threshold of sensitivity
+        a,b,c -  paramets of spreding
         """
         if a==None: 
             a=self.a_srd
@@ -246,23 +308,26 @@ class spectr():
         L=len(self.sp)
         I=np.arange(L)
         ca=np.zeros_like(self.sp)
+        ca2=np.zeros_like(self.sp)
         wv=np.zeros_like(self.sp)
         for b in I:    # перебор всех значений сдвига
             a=self.a_srd*b*b+self.b_srd*b+self.c_srd
             t=(I-b)/a
             wv= (1 -t*t)*np.exp(-0.5*t*t)
             ca[b]=(1/a**0.5) * self.sp.dot(wv)
+            ca2[b]=(1/a**0.5) * self.sp.dot(wv*wv)
         ca=ca/max(ca)
-        h=0.2
-        ca[ca<h]=0
+        ca[ca<th]=0
         di=5 # width windows for lokation peak
-        self.peaks=np.array([])
+        self.ipeaks=np.array([])
+        self.wpeaks=np.array([])
         for i in range(di+1,L-di):
             if ca[i]>0:
                 if sum(ca[i-di:i+di]>ca[i])==0:
-                    self.peaks=np.append(self.peaks,i)
-        self.history.append(['fond peaks: '+str(self.peaks)])
-        return self.peaks
+                    self.ipeaks=np.append(self.ipeaks,i)
+                    self.wpeaks=np.append(self.wpeaks,ca[i])
+        self.history.append(['fond peaks: '+str(self.ipeaks)])
+        return self.ipeaks, self.wpeaks
 
 # mnk
         
@@ -287,6 +352,12 @@ class spectr():
         elif tp == 1:
             return scop.nnls(bsd,y)[0]
         
+    def history_print(self):
+        """метод выводит на экран историю спектра"""
+        print('*** start history of '+self.name)
+        for s in self.history:
+            print(s)
+        print('*** finish history of '+self.name)
             
             
 # math for spectr
@@ -298,6 +369,7 @@ class spectr():
         sp=copy.copy(self)
         if type(k) in[float, int]:
             sp.sp=sp.sp*k
+            sp.history.append('multiplication spectr ' +sp.name + ' by number '+str(k))
         return sp
     
     def __rmul__(self, k):
@@ -307,6 +379,7 @@ class spectr():
         sp=copy.copy(self)
         if type(k) in[float, int]:
             sp.sp=sp.sp*k
+            sp.history.append('multiplication spectr ' +sp.name + ' by number '+str(k))
         return sp
     
     def __truediv__(self, k,time=None):
@@ -316,6 +389,7 @@ class spectr():
         sp=copy.copy(self)
         if (type(k) in[float, int])and(k!=0):
             sp.sp=sp.sp/k
+            sp.history.append('division spectr ' +sp.name + ' by number '+str(k))
         return sp
         
     
@@ -326,11 +400,13 @@ class spectr():
         sp=copy.copy(self)
         if type(k) in[float, int]:
             sp.sp=sp.sp+k
+            sp.history.append('sum spectr ' +sp.name + ' by number '+str(k))
         elif (str(type(k)) == "<class 'SPINLib.spectr'>"):
             if len(sp.sp)>=len(k.sp):
                 sp.sp = sp.sp[0:len(k.sp)]+k.sp
             else:
                 sp.sp = sp.sp[0:len(k.sp)]+k.sp[0:len(sp.sp)]
+            sp.history.append('sum spectr ' +sp.name + ' by spectr '+k.name)
         return sp
        
     def __add__(self, k):
@@ -340,39 +416,45 @@ class spectr():
         sp=copy.copy(self)
         if type(k) in[float, int]:
             sp.sp=sp.sp+k
+            sp.history.append('sum spectr ' +sp.name + ' by number '+str(k))
         elif (str(type(k)) == "<class 'SPINLib.spectr'>"):
             if len(sp.sp)>=len(k.sp):
                 sp.sp = sp.sp[0:len(k.sp)]+k.sp
             else:
                 sp.sp = sp.sp[0:len(k.sp)]+k.sp[0:len(sp.sp)]
+            sp.history.append('sum spectr ' +sp.name + ' by spectr '+k.name)
         return sp
     
     def __rsub__(self, k):
         """
-        sum spectr by number k
+        sub spectr by number k
         """
         sp=copy.copy(self)
         if type(k) in[float, int]:
             sp.sp=sp.sp-k
+            sp.history.append('sum spectr ' +sp.name + ' by number '+str(k))
         elif (str(type(k)) == "<class 'SPINLib.spectr'>"):
             if len(sp.sp)>=len(k.sp):
                 sp.sp = sp.sp[0:len(k.sp)]-k.sp
             else:
                 sp.sp = sp.sp[0:len(k.sp)]-k.sp[0:len(sp.sp)]
+            sp.history.append('sub spectr ' +sp.name + ' by spectr '+k.name)
         return sp
     
     def __sub__(self, k):
         """
-        sum spectr by number k
+        sub spectr by number k
         """
         sp=copy.copy(self)
         if type(k) in[float, int]:
             sp.sp=sp.sp-k
+            sp.history.append('sum spectr ' +sp.name + ' by number '+str(k))
         elif (str(type(k)) == "<class 'SPINLib.spectr'>"):
             if len(sp.sp)>=len(k.sp):
                 sp.sp = sp.sp[0:len(k.sp)]-k.sp
             else:
                 sp.sp = sp.sp[0:len(k.sp)]-k.sp[0:len(sp.sp)]
+            sp.history.append('sub spectr ' +sp.name + ' by spectr '+k.name)
         return sp
     
     
