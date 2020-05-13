@@ -20,13 +20,13 @@ class spectr():
 # инициализирет спектр
         self.name='' # name of spectrum
         self.type=self.sp_type['na'] # type of spectrum
-        self.a=0 # a-param of energy E=i*a+b
-        self.b=0 # a-param of energy E=i*a+b
+        self.a=0 # a-param of energy E=a+i*b
+        self.b=0 # b-param of energy E=a+i*b
         self.a_srd = 0 # a param of speading sigma = a*i^2+b*i+c
         self.b_srd = 0 # b param of speading sigma = a*i^2+b*i+c
         self.c_srd = 0 # c param of speading sigma = a*i^2+b*i+c
-        self.A1 = 0 # A1 nonlinear param
-        self.A2 = 0 # A2 nonlinear param
+        self.A1 = 0 # A1 nonlinear param j = A1 + A2*i+A3*i**2
+        self.A2 = 1 # A2 nonlinear param
         self.A3 = 0 # A3 nonlinear param
         self.N=N # count of chenals
         self.time = 0
@@ -39,16 +39,17 @@ class spectr():
     
     def set_E(self): 
         """ формирует массив энергий E=i*a+b """
-        self.E=np.arange(len(self.sp))*self.a+self.b
-        self.history.append(['set_E: E=i*'+str(self.a)+'+'+str(self.b)])
+        E = np.arange(len(self.sp))
+        self.E=self.a+self.b*E 
+        self.history.append(['set_E: E='+str(self.a)+'+'+str(self.b)+'*i'])
         
     def open_spe(self, name):
         """ читает спектр в формате SPE """
         f=open(name,'r')
         df=np.loadtxt(f,dtype=np.float)
         self.name=os.path.basename(name).split('.')[0]
-        self.a=df[1]
-        self.b=df[2]
+        self.a=df[2]
+        self.b=df[1]
         self.time =df[3]
         self.sp=np.array(df[4:])
         self.history.append(['Open sp from '+name])
@@ -91,8 +92,8 @@ class spectr():
         #print('E1.:'+str(fields[0]))
         s_e2=s_e2+'.'+str(fields[0])
         e2=float(s_e2)
-        self.a=(e2-e1)/(c2-c1)
-        self.b=e2-self.a*c2       
+        self.b=(e2-e1)/(c2-c1)
+        self.a=e2-self.b*c2       
 #        fields=struct.unpack('<b', fin[32:32+1])
 #        print('День начала:'+str(fields[0]))
 #        fields=struct.unpack('<b', fin[33:33+1])
@@ -187,23 +188,30 @@ class spectr():
         plt.show()
                 
     
-    def ShiftComp(self, comp, shift):
+    def ShiftComp(self, comp, shift,non_linear = False):
         """ Функция деформирует спектр spe 
-        comp - коэффициент сжатия растяжения 
+        comp - коэффициент сжатия / растяжения 
         shift - сдвиг в каналах
-        j=i*comp + shift
+        i=j*comp + shift
         """
+        if non_linear == False:
+            a1,a2,a3  = 0,1,0
+        else:
+            a1,a2,a3  = self.A1, self.A2, self.A3
+            
         sp0=np.zeros_like(self.sp)
         for i in range(len(sp0)):
-            start = i*comp+shift
-            finish = (i+1)*comp+shift
-            if start<0: start=0
-            if finish<0: finish=0
-            if start>=len(sp0): start=len(sp0)-1
-            if finish>=len(sp0): finish=len(sp0)-1
-            m=0
-            m=self.sp[math.floor(start)]*(1-start%1)
-            m=m-self.sp[math.floor(finish)]*(1-finish%1)
+            start = (a1+a2*i+a3*i*i)*comp+shift
+            finish = (a1+a2*(i+1)+a3*(i+1)*(i+1))*comp+shift
+            if start<0: 
+                start=0
+            elif start>=len(sp0): 
+                start=len(sp0)-1
+            if finish<0: 
+                finish=0
+            elif finish>=len(sp0): 
+                finish=len(sp0)-1
+            m=self.sp[math.floor(start)]*(1-start%1)-self.sp[math.floor(finish)]*(1-finish%1)
             for j in range(int(math.floor(start)+1),int(math.floor(finish))+1):
                 m = m + self.sp[j]
             sp0[i]=m
@@ -215,6 +223,7 @@ class spectr():
         """ Функция Spreading размазывает спектр 
         sigma = a*i^2+b*i+c
         """
+        
         if a==None: 
             a=self.a_srd
         else:
@@ -337,8 +346,8 @@ class spectr():
     def split(self,base,brd=None,tp=0):
         """
         Function for split spetrum for sum of spectrums from base 
-        base - tuple of spectrums
-        brd - tuple with boards like (left_board, right_board) in channal 
+        base - list of spectrums
+        brd - list with boards like (left_board, right_board) in channal 
         tp = 0 - normal least-squares methods without same boundes 
         tp = 1 - non-negative least squares solver
         https://docs.scipy.org/doc/scipy/reference/optimize.html
@@ -362,9 +371,10 @@ class spectr():
             print(s)
         print('*** finish history of '+self.name)
             
-            
+
 # math for spectr
-         
+
+        
     def __mul__(self, k):
         """
         multiplication spectr by number k
