@@ -20,8 +20,8 @@ class spectr():
 # инициализирет спектр
         self.name='' # name of spectrum
         self.type=self.sp_type['na'] # type of spectrum
-        self.a=0 # a-param of energy E=a+i*b
-        self.b=0 # b-param of energy E=a+i*b
+        self.a=0 # a-param of energy E=a+i*b [KeV]
+        self.b=0 # b-param of energy E=a+i*b [KeV]
         self.a_srd = 0 # a param of speading sigma = a*i^2+b*i+c
         self.b_srd = 0 # b param of speading sigma = a*i^2+b*i+c
         self.c_srd = 0 # c param of speading sigma = a*i^2+b*i+c
@@ -38,11 +38,22 @@ class spectr():
         pass
     
     def set_E(self): 
-        """ формирует массив энергий E=i*a+b """
+        """ формирует массив энергий E=i*a+b [KeV]"""
         E = np.arange(len(self.sp))
         self.E=self.a+self.b*E 
         self.history.append(['set_E: E='+str(self.a)+'+'+str(self.b)+'*i'])
-        
+    
+    def create_spe_array(self, name, a,b, time, mas):
+        """создает спектр из массива mas = np.array"""
+        self.name=name
+        self.a=a
+        self.b=b
+        self.time =time
+        self.sp=mas
+        self.set_E()
+        self.N=len(self.sp)
+        self.history.append(['Create sp from array '+name])
+    
     def open_spe(self, name):
         """ читает спектр в формате SPE """
         f=open(name,'r')
@@ -52,12 +63,11 @@ class spectr():
         self.b=df[1]
         self.time =df[3]
         self.sp=np.array(df[4:])
-        self.history.append(['Open sp from '+name])
         self.set_E()
         self.N=len(self.sp)
         self.history.append(['Open sp from '+name])
         f.close
-    
+        
     def open_cmp(self,name):
         """ читает спектр в формате CMP """
         fin  = open(name, "rb").read()
@@ -129,7 +139,7 @@ class spectr():
         self.N=len(self.sp)
         
     
-    def plot_sp_line(self):
+    def plot_sp_line(self, limy=None, limx = None):
         """ строит спектр in line"""
         fig = plt.figure()
         ax1 = fig.add_axes((0.1,0.3,0.8,0.6)) # create an Axes with some room below
@@ -138,7 +148,7 @@ class spectr():
         Y = self.sp
 
         ax1.plot(X,Y)
-        ax1.set_xlabel('Chanal')
+        ax1.set_xlabel('Channel')
 #        ax1.set_xlim(0,self.N)
         # create second Axes. Note the 0.0 height
         ax2 = fig.add_axes((0.1,0.1,0.8,0.0))
@@ -154,11 +164,17 @@ class spectr():
  #       ax2.set_xticklabels(tick_function(new_tick_locations))
         ax2.plot(self.E,Y)
         ax2.set_xlabel('Energy, KeV')
+        
+        if limx != None:
+            ax1.set_xlim(limx[0],limx[1])
+            ax2.set_xlim(self.E[limx[0]],self.E[limx[1]])
+        if limy != None:
+            ax1.set_ylim(limy[0],limy[1])
      #   ax2.set_xlim(min(self.E),max(self.E))
         
         plt.show()
         
-    def plot_sp_lg(self):
+    def plot_sp_lg(self, limy=None, limx = None):
         """ строит спектр in log"""
         fig = plt.figure()
         ax1 = fig.add_axes((0.1,0.3,0.8,0.6)) # create an Axes with some room below
@@ -167,8 +183,9 @@ class spectr():
         Y = self.sp
 
         ax1.semilogy(range(self.N),self.sp,label=self.name)
-        ax1.set_xlabel('Chanal')
-#        ax1.set_xlim(0,self.N)
+        ax1.set_xlabel('Channel')
+        
+           
         # create second Axes. Note the 0.0 height
         ax2 = fig.add_axes((0.1,0.1,0.8,0.0))
         ax2.yaxis.set_visible(False) # hide the yaxis
@@ -183,12 +200,18 @@ class spectr():
  #       ax2.set_xticklabels(tick_function(new_tick_locations))
         ax2.plot(self.E,Y)
         ax2.set_xlabel('Energy, KeV')
+        
+        if limx != None:
+            ax1.set_xlim(limx[0],limx[1])
+            ax2.set_xlim(self.E[limx[0]],self.E[limx[1]])
+        if limy != None:
+            ax1.set_ylim(limy[0],limy[1]) 
      #   ax2.set_xlim(min(self.E),max(self.E))
         
         plt.show()
                 
     
-    def ShiftComp(self, comp, shift,non_linear = False):
+    def ShiftComp(self, comp, shift, non_linear = False):
         """ Функция деформирует спектр spe 
         comp - коэффициент сжатия / растяжения 
         shift - сдвиг в каналах
