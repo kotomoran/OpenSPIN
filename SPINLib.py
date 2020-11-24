@@ -182,7 +182,7 @@ class spectr():
         X = range(self.N)
         Y = self.sp
 
-        ax1.semilogy(range(self.N),self.sp,label=self.name)
+        ax1.semilogy(X,self.sp,label=self.name)
         ax1.set_xlabel('Channel')
         
            
