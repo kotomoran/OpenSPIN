@@ -6,5 +6,5 @@ save_non_project_files = False
 
 [main]
 version = 0.2.0
-recent_files = ['..\\..\\..\\Users\\katamaran.PETROPHYSICS\\.spyder-py3\\temp.py', 'SPINLib.py', '..\\..\\tomo\\KalibrRhobZ\\Osadki_Dual_Energy2\\rz\\Dual_energy_Onega.py']
+recent_files = ['SPINLib.py', '..\\..\\tomo\\KalibrRhobZ\\Osadki_Dual_Energy2\\rz\\Dual_energy_Onega.py']
 

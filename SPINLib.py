@@ -12,7 +12,7 @@ import json
 import struct
 import scipy.optimize as scop
 import copy
-
+import sys
 
 class spectr():
     sp_type={'na':0,'GINR':1,'GIRZ':2,'GINR+RZ':3,'N':4,'GIER':5}
@@ -20,8 +20,8 @@ class spectr():
 # инициализирет спектр
         self.name='' # name of spectrum
         self.type=self.sp_type['na'] # type of spectrum
-        self.a=0 # a-param of energy E=a+i*b [KeV]
-        self.b=0 # b-param of energy E=a+i*b [KeV]
+        self.a=0 # a-param of energy E=a*i+b [MeV]
+        self.b=0 # b-param of energy E=a*i+b [MeV]
         self.a_srd = 0 # a param of speading sigma = a*i^2+b*i+c
         self.b_srd = 0 # b param of speading sigma = a*i^2+b*i+c
         self.c_srd = 0 # c param of speading sigma = a*i^2+b*i+c
@@ -37,11 +37,24 @@ class spectr():
         self.wpeaks=np.array([])
         pass
     
-    def set_E(self): 
-        """ формирует массив энергий E=i*a+b [KeV]"""
+    def set_E(self, a,b, Ei = None, f_type = None): 
+        """ формирует массив энергий E=i*a+b [MeV]
+        или путем аппроксимации массива Ei = [[i, E],[],[]]"""
         E = np.arange(len(self.sp))
-        self.E=self.a+self.b*E 
-        self.history.append(['set_E: E='+str(self.a)+'+'+str(self.b)+'*i'])
+        if Ei == None:
+            self.a = a
+            self.b = b
+            self.E=self.a*E+self.b
+            self.history.append(['set_E: E='+str(self.a)+'*i+'+str(self.b)])
+        else:
+            if len(Ei) == 2:
+                if Ei[0][0]<Ei[1][0]:
+                    self.a = (Ei[1][1]-Ei[0][1])/(Ei[1][0]-Ei[0][0])
+                    self.b = Ei[1][1]-self.a*Ei[1][0]
+                    self.E=self.a*E+self.b
+                    self.history.append(['set_E: E='+str(self.a)+'*i+'+str(self.b)])
+                    
+        
     
     def create_spe_array(self, name, a,b, time, mas):
         """создает спектр из массива mas = np.array"""
@@ -59,11 +72,11 @@ class spectr():
         f=open(name,'r')
         df=np.loadtxt(f,dtype=np.float)
         self.name=os.path.basename(name).split('.')[0]
-        self.a=df[2]
-        self.b=df[1]
+        self.a=df[1]
+        self.b=df[2]
         self.time =df[3]
         self.sp=np.array(df[4:])
-        self.set_E()
+        self.set_E(self.a,self.b)
         self.N=len(self.sp)
         self.history.append(['Open sp from '+name])
         f.close
@@ -102,8 +115,8 @@ class spectr():
         #print('E1.:'+str(fields[0]))
         s_e2=s_e2+'.'+str(fields[0])
         e2=float(s_e2)
-        self.b=(e2-e1)/(c2-c1)
-        self.a=e2-self.b*c2       
+        self.a=(e2-e1)/(c2-c1)
+        self.b=e2-self.b*c2       
 #        fields=struct.unpack('<b', fin[32:32+1])
 #        print('День начала:'+str(fields[0]))
 #        fields=struct.unpack('<b', fin[33:33+1])
@@ -135,7 +148,7 @@ class spectr():
                 self.sp[i]=md*64
         
         self.history.append(['Open sp from '+name])
-        self.set_E()
+        self.set_E(self.a,self.b)
         self.N=len(self.sp)
         
     
@@ -163,7 +176,7 @@ class spectr():
 #        ax2.set_xticks(new_tick_locations)
  #       ax2.set_xticklabels(tick_function(new_tick_locations))
         ax2.plot(self.E,Y)
-        ax2.set_xlabel('Energy, KeV')
+        ax2.set_xlabel('Energy, MeV')
         
         if limx != None:
             ax1.set_xlim(limx[0],limx[1])
@@ -304,8 +317,8 @@ class spectr():
                 return mas.tolist()
         if (name==''):
             name=self.name+'.json'
-            with open(name, "w", encoding="utf-8") as file:
-                json.dump(self.__dict__,file, default = mas2json, separators=(',', ':'), sort_keys=True, indent=4)
+        with open(name, "w", encoding="utf-8") as file:
+            json.dump(self.__dict__,file, default = mas2json, separators=(',', ':'), sort_keys=True, indent=4)
                 
     def open_json(self,name):
         """ читает спектр в формате JSON """
@@ -318,6 +331,44 @@ class spectr():
                 self.sp=np.array(self.sp,dtype=float)
             if key=='E':
                 self.E=np.array(self.E,dtype=float)
+                
+                
+    def pik_aprox(self, i1,i2,fast = True):
+        """ 
+        Апроксимация пика между каналами i1 и i2
+        fast = True - быстрый расчет без подгонки
+        fast = False - расчет c подгонкой по сетке
+        """
+        x = np.array(range(i2-i1+1))
+        m = self.sp[i1:i2+1]
+        a= (m[-1]-m[0])/(i2-i1)
+        b=m[0]
+        line_fon = x*a+b
+        m_fon = m - line_fon
+       
+        i0 = sum(m_fon*x)/sum(m_fon)
+        sigma = (sum(m_fon*(x-i0)**2)/(sum(m_fon)-1))**0.5
+        m_gauss = np.exp(-(x-i0)**2/(2*sigma**2))/(sigma*(2*3.1415)**0.5)
+        A = sum(m_fon*m_gauss)/sum(m_gauss**2)
+        m_gauss = m_gauss*A
+        
+        if fast == False:
+            ro = sys.float_info.max
+            sigma_= sigma
+            i0_ = i0
+            for i in np.linspace(i0*0.9,i0*1.1,50):
+                for s in np.linspace(sigma*0.75,sigma*1.25,50):
+                    m_gauss_ = A*np.exp(-(x-i)**2/(2*s**2))/(s*(2*3.1415)**0.5)
+                    if sum((m_fon-m_gauss_)**2)**0.5<ro:
+                        ro = sum((m_fon-m_gauss_)**2)**0.5
+                        i0_=i
+                        sigma_=s
+            m_gauss_ = np.exp(-(x-i0_)**2/(2*sigma_**2))/(sigma_*(2*3.1415)**0.5)
+            A_ = sum(m_fon*m_gauss_)/sum(m_gauss_**2)
+            m_gauss_ = m_gauss_*A_
+            return i1+i0_,  sigma_, A_
+        else:
+            return i1+i0, sigma, A
             
     def find_peaks(self,th=0.1,a=None,b=None,c=None):
         """
