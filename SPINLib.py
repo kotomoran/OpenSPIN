@@ -333,11 +333,15 @@ class spectr():
                 self.E=np.array(self.E,dtype=float)
                 
                 
-    def pik_aprox(self, i1,i2,fast = True):
+
+        
+    def pik_aprox(self, i1,i2,fast = True, k = 1.1, N = 50):
         """ 
         Апроксимация пика между каналами i1 и i2
         fast = True - быстрый расчет без подгонки
         fast = False - расчет c подгонкой по сетке
+        k - [1.1] диапазон подбора параметров
+        N - количество точек подбора
         """
         x = np.array(range(i2-i1+1))
         m = self.sp[i1:i2+1]
@@ -365,11 +369,52 @@ class spectr():
                         sigma_=s
             m_gauss_ = np.exp(-(x-i0_)**2/(2*sigma_**2))/(sigma_*(2*3.1415)**0.5)
             A_ = sum(m_fon*m_gauss_)/sum(m_gauss_**2)
-            m_gauss_ = m_gauss_*A_
             return i1+i0_,  sigma_, A_
         else:
             return i1+i0, sigma, A
-            
+   
+    def pik2_aprox(self, i1,i2,fast = True, k = 1.5, N = 50):
+        """ 
+        Апроксимация пика между каналами i1 и i2
+        fast = True - быстрый расчет без подгонки
+        fast = False - расчет c подгонкой по сетке
+        k - [1.5] диапазон подбора параметров
+        N - количество точек подбора
+        """
+        x = np.array(range(i2-i1+1))
+        m = self.sp[i1:i2+1]
+        a= (m[-1]-m[0])/(i2-i1)
+        b=m[0]
+        line_fon = x*a+b
+        m_fon = m - line_fon
+       
+        i0 = sum(m_fon*x)/sum(m_fon)
+        sigma = (sum(m_fon*(x-i0)**2)/(sum(m_fon)-1))**0.5
+        m_gauss = np.exp(-(x-i0)**2/(2*sigma**2))/(sigma*(2*3.1415)**0.5)
+        A = sum(m_fon*m_gauss)/sum(m_gauss**2)
+        m_gauss = m_gauss*A
+        
+        ro = sys.float_info.max
+        m_gauss_=np.zeros((len(m_fon),2))
+        sigma_= sigma
+        i0_ = i0
+        
+        for i in np.linspace(i0/k,i0*k,N):
+            for j in np.linspace(i0/k,i0*k,N):
+                if i!=j:
+                    for s in np.linspace(sigma/(2*k),sigma*2*k,N):
+                        m_gauss_[:,0] = np.exp(-(x-i)**2/(2*s**2))/(s*(2*3.1415)**0.5)
+                        m_gauss_[:,1] = np.exp(-(x-j)**2/(2*s**2))/(s*(2*3.1415)**0.5)
+                        lstsq = np.linalg.lstsq(m_gauss_, m_fon)
+                        if lstsq[1][0]<ro:
+                            ro = lstsq[1][0]
+                            i0_=i
+                            j0_=j
+                            iA = lstsq[0][0]
+                            jA = lstsq[0][1]
+                            sigma_=s
+        return i1+i0_,  sigma_, iA, i1+j0_,  sigma_, jA
+         
     def find_peaks(self,th=0.1,a=None,b=None,c=None):
         """
         Function for search pikin spectrum by wavevlet 
